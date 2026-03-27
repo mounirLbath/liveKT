@@ -1,12 +1,15 @@
 from live_kt import *
 import pandas as pd
 
+# DATA_PATH = '../pykt-toolkit/data/assist2009/skill_builder_data_corrected_collapsed.csv'
+DATA_PATH = '../pykt-toolkit/data/codeforces24/CF-data.csv'
 
 def test_livekt():
     """
     Prepares Assistment 2009 dataset and runs Live KT on it
     """
-    data = pd.read_csv('./data/assist2009/skill_builder_data_corrected_collapsed.csv')
+    print(DATA_PATH)
+    data = pd.read_csv(DATA_PATH)
     df = prepare_dataset(data, skill = True)
     test_models(df, skill = True, right_align = True)
 
@@ -20,10 +23,11 @@ def test_traditional_kt():
     from preprocess_from_livekt import to_pykt_dataset_up_to_T
     
     # Set T here
-    T = 5
+    T = 20
 
     #Set model here ("dkt" for DKT)
-    model = "akt"
+    model = "dkt"
+    print(DATA_PATH, T, model)
 
     # Prepare the same dataset to be run on a Pykt model
     ROOT = os.path.abspath(os.curdir)
@@ -31,7 +35,8 @@ def test_traditional_kt():
     dpath = os.path.join(DATA, "assist2009_livekt")
     ds_name = "assist2009_livekt"
 
-    raw = pd.read_csv(os.path.join(DATA, "assist2009", "skill_builder_data_corrected_collapsed.csv"), low_memory=False)
+    # path = os.path.join(DATA, "assist2009", "skill_builder_data_corrected_collapsed.csv")
+    raw = pd.read_csv(DATA_PATH, low_memory=False)
     if "order_id" in raw.columns: raw = raw.sort_values(["user_id", "order_id"])
     raw = raw[["user_id", "problem_id", "skill_id", "correct"]].copy(); raw["correct"] = raw["correct"].astype(int)
     df_pivot = prepare_dataset(raw, skill=True)
