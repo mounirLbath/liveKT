@@ -7,6 +7,11 @@ from sklearn.metrics import roc_auc_score
 import numpy as np
 
 
+model = models['GBM']
+T_PREDICT = 15
+ATTEMPT_PREDICT = T_PREDICT - 1
+
+
 df = pd.read_csv(DATA_PATH)
 df['correct'] = df['correct'].astype(int)
 df['user'] = np.unique(df['user_id'], return_inverse=True)[1]
@@ -15,7 +20,7 @@ df['skill'] = np.unique(df['skill_id'].astype('string').fillna('0'), return_inve
 df['user_occ'] = df.groupby('user_id')['problem_id'].transform('count')
 df['attempt_nb'] = df.groupby('user_id').cumcount()
 # Remove too rare users and truncate at 20 samples per user
-df = df.query('user_occ > 5 and attempt_nb < 20')
+df = df.query('user_occ > 5 and attempt_nb < @T_PREDICT')
 
 rng = np.random.default_rng(42)
 N_USERS = df['user'].nunique()
@@ -42,8 +47,8 @@ for i_train, i_valtest in cv.split(X, y, subset['user']):  # Currently only one 
     mydata = X.iloc[i_valtest].copy()
     mydata['indice'] = i_valtest
 
-    i_val = mydata.query('attempt_nb < 9')['indice']
-    i_test = mydata.query('attempt_nb == 9')['indice']
+    i_val = mydata.query('attempt_nb < @ATTEMPT_PREDICT')['indice']
+    i_test = mydata.query('attempt_nb == @ATTEMPT_PREDICT')['indice']
     print(i_val.shape, i_test.shape)
     
     i_trainval = np.concatenate((i_train, i_val))
@@ -56,6 +61,5 @@ def compute_auc(model, X, y, i_trainval, i_test):
     print('Test AUC', roc_auc_score(y.iloc[i_test], y_pred))
 
 
-model = models['ICL']
 compute_auc(model, X[['user', 'item', 'skill']], y, i_trainval, i_test)
 compute_auc(model, X[['user', 'item', 'skill', 'attempt_nb']], y, i_trainval, i_test)
