@@ -7,8 +7,8 @@ from sklearn.metrics import roc_auc_score
 import numpy as np
 
 
-model = models['GBM']
-T_PREDICT = 15
+# model = models['ICL']
+T_PREDICT = 5
 ATTEMPT_PREDICT = T_PREDICT - 1
 
 
@@ -31,7 +31,7 @@ FEATURES = ['user', 'item', 'skill', 'attempt_nb'] # was 'attempt_count' for Ass
 X = subset[FEATURES].fillna(0)  # Some skill_ids are NaN!
 y = subset['correct']
 
-cv = GroupShuffleSplit(n_splits=1, random_state=42, test_size=0.25)
+cv = GroupShuffleSplit(n_splits=5, random_state=42, test_size=0.2)
 
 """
 Some tests you can make
@@ -40,8 +40,21 @@ set(X.iloc[i_train]['user'].unique()) & set(X.iloc[i_valtest]['user'].unique())
 set(X.iloc[i_trainval]['user'].unique()) & set(X.iloc[i_test]['user'].unique())
 """
 
-for i_train, i_valtest in cv.split(X, y, subset['user']):  # Currently only one split
-    print(i_train.shape, i_valtest.shape)
+def compute_auc(model, X, y, i_trainval, i_test):
+    model.fit(X.iloc[i_trainval], y.iloc[i_trainval])
+    y_pred = model.predict_proba(X.iloc[i_test])[:, 1]
+    # print('Mean test outcome', y.iloc[i_test].mean())
+    auc = roc_auc_score(y.iloc[i_test], y_pred)
+    # print('Test AUC', auc)
+    return auc
+
+results = pd.DataFrame()
+for i_fold, (i_train, i_valtest) in enumerate(list(cv.split(X, y, subset['user']))):
+    print(i_fold)
+    # print(i_train.shape, i_valtest.shape)
+
+    print('mean train user ID', X.iloc[i_train]['user'].unique().sum(), X.iloc[i_train]['user'].max(),
+          'test', X.iloc[i_valtest]['user'].unique().sum(), X.iloc[i_valtest]['user'].max())
 
     # i_val, i_test = train_test_split(i_valtest, test_size=0.5)
     mydata = X.iloc[i_valtest].copy()
@@ -49,17 +62,18 @@ for i_train, i_valtest in cv.split(X, y, subset['user']):  # Currently only one 
 
     i_val = mydata.query('attempt_nb < @ATTEMPT_PREDICT')['indice']
     i_test = mydata.query('attempt_nb == @ATTEMPT_PREDICT')['indice']
-    print(i_val.shape, i_test.shape)
+    # print(i_val.shape, i_test.shape)
     
     i_trainval = np.concatenate((i_train, i_val))
-    print(i_trainval.shape)
+    # print(i_trainval.shape)
 
+    for model_key in models:
+        model = models[model_key]
+        # print(model_key)
+        auc = compute_auc(model, X[['user', 'item', 'skill']], y, i_trainval, i_test)
+        results.loc[model_key, i_fold] = auc
+        # auc_att = compute_auc(model, X[['user', 'item', 'skill', 'attempt_nb']], y, i_trainval, i_test)
+        # results.loc[model_key + 'att', i_fold] = auc_att
 
-def compute_auc(model, X, y, i_trainval, i_test):
-    model.fit(X.iloc[i_trainval], y.iloc[i_trainval])
-    y_pred = model.predict_proba(X.iloc[i_test])[:, 1]
-    print('Test AUC', roc_auc_score(y.iloc[i_test], y_pred))
-
-
-compute_auc(model, X[['user', 'item', 'skill']], y, i_trainval, i_test)
-compute_auc(model, X[['user', 'item', 'skill', 'attempt_nb']], y, i_trainval, i_test)
+# print(results.round(3))
+print(results.mean(axis=1).round(3))

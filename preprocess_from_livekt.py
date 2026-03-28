@@ -43,7 +43,8 @@ def dataset_up_to_T(df_pivot, T, i_train, i_test, skill=False, pad_val=-1, kfold
             fold = -1
         else:
             fold = train_fold_by_idx[idx]
-        uid = df_pivot.loc[idx, "user_id"]
+        # print(df_pivot.columns)
+        uid = df_pivot.loc[idx, "user"]  # Was user_id
         qs, cs, rs = [], [], []
         for i in range(1, T + 1):
             pid_col = f"problem_id_{i}"
@@ -73,7 +74,7 @@ def dataset_up_to_T(df_pivot, T, i_train, i_test, skill=False, pad_val=-1, kfold
     return pd.DataFrame(rows)
 
 
-def compute_dataset_up_to_T(df_pivot, T, skill=False, max_context_size=200, right_align=True, kfold=5):
+def compute_dataset_up_to_T(df_pivot, T, skill=False, max_context_size=200, right_align=True, kfold=5, i_fold=0):
     """
     Compute the dataset up to timestep T and return the same train/test split
     as live_kt.compute_dataset_up_to, plus a pykt-ready total dataframe.
@@ -98,7 +99,7 @@ def compute_dataset_up_to_T(df_pivot, T, skill=False, max_context_size=200, righ
 
     _, _, i_train, i_test = compute_dataset_up_to(
         df_pivot, T, max_context_size=max_context_size,
-        skill=skill, right_align=right_align,
+        skill=skill, right_align=right_align, i_fold=i_fold
     )
     total_df = dataset_up_to_T(df_pivot, T, i_train, i_test, skill=skill, kfold=kfold)
     return total_df, i_train, i_test
@@ -114,6 +115,7 @@ def to_pykt_dataset_up_to_T(
     min_seq_len=3,
     maxlen=200,
     kfold=5,
+    i_fold=0
 ):
     """
     Build dataset up to T with the same train/test interactions as live_kt,
@@ -137,7 +139,8 @@ def to_pykt_dataset_up_to_T(
     """
     from pykt.preprocess.split_datasets import main_from_dataframe
 
-    total_df, i_train, i_test = compute_dataset_up_to_T(df_pivot, T, skill=skill, kfold=kfold)
+    total_df, i_train, i_test = compute_dataset_up_to_T(df_pivot, T, skill=skill, kfold=kfold, i_fold=i_fold)
+    print('Train users sum', np.sum(i_train), 'test users sum', np.sum(i_test))
     effective_keys = {"uid", "questions", "concepts", "responses"}
     main_from_dataframe(
         total_df,

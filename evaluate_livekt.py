@@ -1,19 +1,20 @@
 from live_kt import *
 import pandas as pd
 
-# DATA_PATH = '../pykt-toolkit/data/assist2009/skill_builder_data_corrected_collapsed.csv'
-DATA_PATH = '../pykt-toolkit/data/codeforces24/CF-data.csv'
+DATA_PATH = '../pykt-toolkit/data/assist2009/skill_builder_data_corrected_collapsed.csv'
+# DATA_PATH = '../pykt-toolkit/data/codeforces24/CF-data.csv'
+# DATA_PATH = '../pykt-toolkit/data/poj/POJ-data.csv'
 
-def test_livekt():
+def test_livekt(i_fold=0):
     """
     Prepares Assistment 2009 dataset and runs Live KT on it
     """
     print(DATA_PATH)
     data = pd.read_csv(DATA_PATH)
     df = prepare_dataset(data, skill = True)
-    test_models(df, skill = True, right_align = True)
+    return test_models(df, skill = True, right_align = True, i_fold=i_fold)
 
-def test_traditional_kt():
+def test_traditional_kt(i_fold=0):
     """
     Prepares Assistment 2009 dataset and runs Live KT on PyKT models (AKT or DKT)
     """
@@ -26,7 +27,7 @@ def test_traditional_kt():
     T = 20
 
     #Set model here ("dkt" for DKT)
-    model = "dkt"
+    model = "akt"
     print(DATA_PATH, T, model)
 
     # Prepare the same dataset to be run on a Pykt model
@@ -41,7 +42,7 @@ def test_traditional_kt():
     raw = raw[["user_id", "problem_id", "skill_id", "correct"]].copy(); raw["correct"] = raw["correct"].astype(int)
     df_pivot = prepare_dataset(raw, skill=True)
 
-    to_pykt_dataset_up_to_T(df_pivot, T, dname=dpath, dataset_name=ds_name, configf=os.path.join(CONFIGS, "data_config.json"), skill=True, maxlen=200, kfold=5)
+    to_pykt_dataset_up_to_T(df_pivot, T, dname=dpath, dataset_name=ds_name, configf=os.path.join(CONFIGS, "data_config.json"), skill=True, maxlen=200, kfold=5, i_fold=i_fold)
     with open(os.path.join(CONFIGS, "data_config.json")) as f: cfg = json.load(f)
     if ds_name not in cfg:
         cfg[ds_name] = {**cfg["assist2009_livekt"]}

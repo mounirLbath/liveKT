@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import ShuffleSplit, train_test_split
 from sklearn.metrics import roc_auc_score
 from sklearn.linear_model import LogisticRegression
 from skrub import tabular_pipeline
@@ -18,10 +18,10 @@ Our implementation of LiveKT
 # Models used to run liveKT
 models = {'LR':LogisticRegression(solver='liblinear'),
           'GBM': tabular_pipeline('classifier'),
-          'PFN': TabPFNClassifier(),
+          'PFN': TabPFNClassifier(ignore_pretraining_limits=True),
           'ICL': TabICLClassifier()}
 
-def prepare_dataset(data, skill = False):
+def prepare_dataset(data, skill = False, i_fold=0):
     """
     Prepare the dataset for evaluation
 
@@ -44,13 +44,14 @@ def prepare_dataset(data, skill = False):
 
     # index sequences for each user
     df['attempt_nb'] = df.groupby('user_id').cumcount() + 1
+    df['user'] = np.unique(df['user_id'], return_inverse=True)[1]
 
     # pivot dataset: now includes skill_id too
     if skill:
-        df_pivot = df.pivot(index='user_id', columns='attempt_nb',
+        df_pivot = df.pivot(index='user', columns='attempt_nb',
                         values=['problem_id', 'skill_id', 'correct'])
     else:
-        df_pivot = df.pivot(index='user_id', columns='attempt_nb', values=['problem_id', 'correct'])
+        df_pivot = df.pivot(index='user', columns='attempt_nb', values=['problem_id', 'correct'])
 
     df_pivot.columns = [f"{col}_{num}" for col, num in df_pivot.columns]
     df_pivot = df_pivot.reset_index()
@@ -78,7 +79,7 @@ def _right_align_row(row, start, t, prefix_list):
             out[c] = aligned[i]
     return out
 
-def compute_dataset_up_to(df, t, max_context_size=200, skill = False, right_align = True):
+def compute_dataset_up_to(df, t, max_context_size=200, skill = False, right_align = True, i_fold=0):
     start = max(1, t - max_context_size)
 
     if skill:
@@ -93,7 +94,9 @@ def compute_dataset_up_to(df, t, max_context_size=200, skill = False, right_alig
             [f'correct_{i}'    for i in range(start, t + 1)]
         ].copy()
 
-    i_train, i_test = train_test_split(df.index, random_state=42)
+    cv = ShuffleSplit(n_splits=5, random_state=42, test_size=0.2)
+    i_train, i_test = list(cv.split(df.index))[i_fold]
+    print(len(i_train), max(i_train), sum(i_train), len(i_test), max(i_test), sum(i_test))
     i_test = df_slice.iloc[i_test].dropna(subset=[f'correct_{t}']).index
 
     # Right-align train rows only: nan, nan, ..., i0, i1, ..., ik (k = last non-nan index)
@@ -107,13 +110,15 @@ def compute_dataset_up_to(df, t, max_context_size=200, skill = False, right_alig
     X = df_slice.drop(columns=[f'correct_{t}'])      # keep problem_id_t and skill_id_t in X
     y = df_slice[f'correct_{t}'].fillna(0.0)
 
+    print('Mean test outcome', y[i_test].mean())
+
     return X, y, i_train, i_test
 
-def compute_results_pivot(model, model_name, df, t, results=None, results_time=None, fillna=False, skill = False, debug = True, right_align = True):   
+def compute_results_pivot(model, model_name, df, t, results=None, results_time=None, fillna=False, skill = False, debug = True, right_align = True, i_fold=0):   
     """
     Computes the result 
     """
-    X, y, i_train, i_test = compute_dataset_up_to(df,t, skill = skill, right_align = right_align)
+    X, y, i_train, i_test = compute_dataset_up_to(df,t, skill = skill, right_align = right_align, i_fold=i_fold)
     
     if len(i_test) == 0:
         return None
@@ -257,7 +262,7 @@ def full_auc(df, start_t = 1, max_t = None,save_dir="predictions", model_list = 
 
     return results
 
-def test_models(df, step=5, a=5, b=21, skill = False, right_align = True):
+def test_models(df, step=5, a=5, b=21, skill = False, right_align = True, i_fold=0):
     """
     Tests the different models on the LiveKT pipeline 
     returns results (AUC for each model for each T), and results_time (time to make prediction for each model and T)
@@ -270,7 +275,7 @@ def test_models(df, step=5, a=5, b=21, skill = False, right_align = True):
         print("---")
         print("Evaluating model ",model_name)
         for i in range(a,b, step):
-            compute_results_pivot(model, model_name, df, i, results, results_time, fillna=(model_name != 'PFN'), skill = skill, right_align = right_align)
+            compute_results_pivot(model, model_name, df, i, results, results_time, fillna=(model_name != 'PFN'), skill = skill, right_align = right_align, i_fold=i_fold)
     print(results_time)
     print(results)
     return results, results_time
