@@ -445,8 +445,8 @@
     },
     "assist2009_livekt": {
         "dpath": "../data/assist2009_livekt",
-        "num_q": 6734,
-        "num_c": 112,
+        "num_q": 12333,
+        "num_c": 138,
         "input_type": [
             "questions",
             "concepts"
@@ -471,7 +471,7 @@
         "test_question_window_file": "test_question_window_sequences.csv"
     },
     "assist2009_T20": {
-        "dpath": "/users/eleves-b/2024/mounir.lbath/Documents/psc/pykt/pykt-toolkit-main/data/assist2009_T20",
+        "dpath": "/users/XXX/Documents/XXX/pykt/pykt-toolkit-main/data/assist2009_T20",
         "num_q": 26662,
         "num_c": 151,
         "input_type": [

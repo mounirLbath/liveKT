@@ -5,10 +5,11 @@ from sklearn.model_selection import cross_validate, GroupShuffleSplit, train_tes
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 import numpy as np
+from datetime import datetime
 
 
 # model = models['ICL']
-T_PREDICT = 5
+T_PREDICT = 20
 ATTEMPT_PREDICT = T_PREDICT - 1
 
 
@@ -49,6 +50,7 @@ def compute_auc(model, X, y, i_trainval, i_test):
     return auc
 
 results = pd.DataFrame()
+results_times = pd.DataFrame()
 for i_fold, (i_train, i_valtest) in enumerate(list(cv.split(X, y, subset['user']))):
     print(i_fold)
     # print(i_train.shape, i_valtest.shape)
@@ -67,13 +69,21 @@ for i_fold, (i_train, i_valtest) in enumerate(list(cv.split(X, y, subset['user']
     i_trainval = np.concatenate((i_train, i_val))
     # print(i_trainval.shape)
 
-    for model_key in models:
+    for model_key in models:# ["LR", "GBM"]: # ["PFN", "ICL"]:  # in models
         model = models[model_key]
+        dt = datetime.now()
         # print(model_key)
-        auc = compute_auc(model, X[['user', 'item', 'skill']], y, i_trainval, i_test)
-        results.loc[model_key, i_fold] = auc
-        # auc_att = compute_auc(model, X[['user', 'item', 'skill', 'attempt_nb']], y, i_trainval, i_test)
-        # results.loc[model_key + 'att', i_fold] = auc_att
+        # auc = compute_auc(model, X[['user', 'item', 'skill']], y, i_trainval, i_test)
+        # results.loc[model_key, i_fold] = auc
+        auc_att = compute_auc(model, X[['user', 'item', 'skill', 'attempt_nb']], y, i_trainval, i_test)
+        results.loc[model_key + 'att', i_fold] = auc_att
+
+        elapsed = datetime.now() - dt
+        print(model_key, i_fold, elapsed)
+        results_times.loc[model_key + 'time', i_fold] = elapsed.seconds * 1000 + elapsed.microseconds / 1000
+
 
 # print(results.round(3))
 print(results.mean(axis=1).round(3))
+# print(results_times.round(3))
+print(results_times.mean(axis=1).round(3))
